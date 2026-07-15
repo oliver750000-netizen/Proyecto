@@ -1,1 +1,476 @@
-x = 20 + @
+package com.ejemplo.competencia;
+
+import java.util.*;
+import java.io.*;
+import java.util.stream.*;
+import java.util.function.*;
+
+/**
+ * Clase principal para probar el análisis léxico y sintáctico de Java
+ * @author Equipo de Compiladores
+ * @version 1.0
+ */
+@SuppressWarnings({"unchecked", "deprecation"})
+public class AnalizadorJavaPrueba<T extends Number & Comparable<T>> 
+    extends Object 
+    implements Serializable, Cloneable, Comparable<AnalizadorJavaPrueba<T>> {
+    
+    // ============================================
+    // CONSTANTES Y CAMPOS ESTÁTICOS
+    // ============================================
+    public static final int MAX_ELEMENTOS = 100;
+    private static final String NOMBRE_DEFAULT = "Prueba";
+    protected static volatile int contadorInstancias = 0;
+    
+    // ============================================
+    // CAMPOS DE INSTANCIA
+    // ============================================
+    private String nombre;
+    private int edad;
+    private double salario;
+    private boolean activo;
+    private List<T> elementos;
+    private Map<String, T> mapaElementos;
+    private transient T[] arregloDatos;
+    private volatile long timestamp;
+    
+    // ============================================
+    // CONSTRUCTORES
+    // ============================================
+    public AnalizadorJavaPrueba() {
+        this(NOMBRE_DEFAULT, 0, 0.0, true);
+    }
+    
+    public AnalizadorJavaPrueba(String nombre, int edad) throws IllegalArgumentException {
+        this(nombre, edad, 0.0, true);
+    }
+    
+    public AnalizadorJavaPrueba(String nombre, int edad, double salario, boolean activo) {
+        this.nombre = nombre;
+        this.edad = edad;
+        this.salario = salario;
+        this.activo = activo;
+        this.elementos = new ArrayList<>();
+        this.mapaElementos = new HashMap<>();
+        this.timestamp = System.currentTimeMillis();
+        contadorInstancias++;
+    }
+    
+    // ============================================
+    // MÉTODOS ESTÁTICOS
+    // ============================================
+    public static <E> List<E> filtrarLista(List<E> lista, Predicate<E> filtro) {
+        if (lista == null || filtro == null) {
+            return Collections.emptyList();
+        }
+        return lista.stream()
+            .filter(filtro)
+            .collect(Collectors.toList());
+    }
+    
+    public static double calcularPromedio(List<? extends Number> numeros) {
+        return numeros.stream()
+            .mapToDouble(Number::doubleValue)
+            .average()
+            .orElse(0.0);
+    }
+    
+    // ============================================
+    // MÉTODOS DE INSTANCIA - GETTERS Y SETTERS
+    // ============================================
+    public synchronized String getNombre() {
+        return this.nombre;
+    }
+    
+    public synchronized void setNombre(String nombre) {
+        if (nombre != null && !nombre.trim().isEmpty()) {
+            this.nombre = nombre.trim();
+        } else {
+            throw new IllegalArgumentException("El nombre no puede estar vacío");
+        }
+    }
+    
+    public int getEdad() {
+        return this.edad;
+    }
+    
+    public void setEdad(int edad) {
+        if (edad >= 0 && edad <= 150) {
+            this.edad = edad;
+        } else {
+            throw new IllegalArgumentException("Edad fuera de rango: " + edad);
+        }
+    }
+    
+    public double getSalario() {
+        return this.salario;
+    }
+    
+    public void setSalario(double salario) {
+        this.salario = Math.max(0.0, salario);
+    }
+    
+    public boolean isActivo() {
+        return this.activo;
+    }
+    
+    public void setActivo(boolean activo) {
+        this.activo = activo;
+    }
+    
+    public List<T> getElementos() {
+        return Collections.unmodifiableList(this.elementos);
+    }
+    
+    // ============================================
+    // MÉTODOS DE OPERACIÓN
+    // ============================================
+    public void agregarElemento(T elemento) {
+        if (elemento == null) {
+            throw new NullPointerException("El elemento no puede ser null");
+        }
+        if (this.elementos.size() >= MAX_ELEMENTOS) {
+            throw new IllegalStateException("Límite de elementos alcanzado");
+        }
+        this.elementos.add(elemento);
+        this.mapaElementos.put(elemento.toString(), elemento);
+    }
+    
+    public T obtenerElemento(int indice) {
+        if (indice < 0 || indice >= this.elementos.size()) {
+            throw new IndexOutOfBoundsException("Índice fuera de rango: " + indice);
+        }
+        return this.elementos.get(indice);
+    }
+    
+    public boolean eliminarElemento(T elemento) {
+        if (elemento == null) {
+            return false;
+        }
+        boolean eliminado = this.elementos.remove(elemento);
+        if (eliminado) {
+            this.mapaElementos.remove(elemento.toString());
+        }
+        return eliminado;
+    }
+    
+    public void limpiarDatos() {
+        this.elementos.clear();
+        this.mapaElementos.clear();
+    }
+    
+    // ============================================
+    // MÉTODOS CON LAMBDAS Y STREAMS
+    // ============================================
+    public List<T> filtrarElementos(Predicate<T> filtro) {
+        if (filtro == null) {
+            return new ArrayList<>(this.elementos);
+        }
+        return this.elementos.stream()
+            .filter(filtro)
+            .collect(Collectors.toList());
+    }
+    
+    public Optional<T> buscarPrimero(Predicate<T> filtro) {
+        return this.elementos.stream()
+            .filter(filtro)
+            .findFirst();
+    }
+    
+    public void procesarElementos(Consumer<T> procesador) {
+        this.elementos.forEach(procesador);
+    }
+    
+    public <R> List<R> mapearElementos(Function<T, R> mapeador) {
+        return this.elementos.stream()
+            .map(mapeador)
+            .collect(Collectors.toList());
+    }
+    
+    // ============================================
+    // MÉTODOS SOBRECARGADOS
+    // ============================================
+    @Override
+    public String toString() {
+        return String.format(
+            "AnalizadorJavaPrueba{nombre='%s', edad=%d, salario=%.2f, activo=%s, elementos=%d}",
+            this.nombre, this.edad, this.salario, this.activo, this.elementos.size()
+        );
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(nombre, edad, salario, activo);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        AnalizadorJavaPrueba<?> that = (AnalizadorJavaPrueba<?>) obj;
+        return edad == that.edad &&
+               Double.compare(that.salario, salario) == 0 &&
+               activo == that.activo &&
+               Objects.equals(nombre, that.nombre);
+    }
+    
+    @Override
+    public AnalizadorJavaPrueba<T> clone() {
+        try {
+            @SuppressWarnings("unchecked")
+            AnalizadorJavaPrueba<T> clon = (AnalizadorJavaPrueba<T>) super.clone();
+            clon.elementos = new ArrayList<>(this.elementos);
+            clon.mapaElementos = new HashMap<>(this.mapaElementos);
+            return clon;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError("Error al clonar", e);
+        }
+    }
+    
+    @Override
+    public int compareTo(AnalizadorJavaPrueba<T> otro) {
+        return Integer.compare(this.edad, otro.edad);
+    }
+    
+    // ============================================
+    // MÉTODOS SINCRONIZADOS
+    // ============================================
+    public synchronized void actualizarTimestamp() {
+        this.timestamp = System.currentTimeMillis();
+    }
+    
+    public synchronized long getTimestamp() {
+        return this.timestamp;
+    }
+    
+    // ============================================
+    // CLASE INTERNA
+    // ============================================
+    public static class Builder<T extends Number & Comparable<T>> {
+        private String nombre = NOMBRE_DEFAULT;
+        private int edad = 0;
+        private double salario = 0.0;
+        private boolean activo = true;
+        private List<T> elementosIniciales = new ArrayList<>();
+        
+        public Builder<T> conNombre(String nombre) {
+            this.nombre = nombre;
+            return this;
+        }
+        
+        public Builder<T> conEdad(int edad) {
+            this.edad = edad;
+            return this;
+        }
+        
+        public Builder<T> conSalario(double salario) {
+            this.salario = salario;
+            return this;
+        }
+        
+        public Builder<T> conActivo(boolean activo) {
+            this.activo = activo;
+            return this;
+        }
+        
+        public Builder<T> conElemento(T elemento) {
+            this.elementosIniciales.add(elemento);
+            return this;
+        }
+        
+        public AnalizadorJavaPrueba<T> build() {
+            AnalizadorJavaPrueba<T> instancia = new AnalizadorJavaPrueba<>(
+                nombre, edad, salario, activo
+            );
+            for (T elem : this.elementosIniciales) {
+                instancia.agregarElemento(elem);
+            }
+            return instancia;
+        }
+    }
+    
+    // ============================================
+    // ENUM INTERNO
+    // ============================================
+    public enum EstadoOperacion {
+        EXITOSO,
+        FALLIDO,
+        EN_PROCESO,
+        CANCELADO
+    }
+    
+    // ============================================
+    // MÉTODO MAIN - PUNTO DE ENTRADA
+    // ============================================
+    public static void main(String[] args) throws IOException, InterruptedException {
+        System.out.println("=== INICIO DE PRUEBA DEL ANALIZADOR ===");
+        
+        // ============================================
+        // PRUEBA 1: Creación y uso de Builder
+        // ============================================
+        AnalizadorJavaPrueba<Integer> instancia1 = new AnalizadorJavaPrueba.Builder<Integer>()
+            .conNombre("Juan Pérez")
+            .conEdad(30)
+            .conSalario(55000.50)
+            .conActivo(true)
+            .conElemento(10)
+            .conElemento(20)
+            .conElemento(30)
+            .build();
+        
+        System.out.println("Instancia 1 creada: " + instancia1);
+        
+        // ============================================
+        // PRUEBA 2: Uso de métodos con arrays
+        // ============================================
+        int[] numeros = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        for (int i = 0; i < numeros.length; i++) {
+            if (numeros[i] % 2 == 0) {
+                System.out.println("Número par: " + numeros[i]);
+            } else {
+                System.out.println("Número impar: " + numeros[i]);
+            }
+        }
+        
+        // ============================================
+        // PRUEBA 3: Operaciones con listas
+        // ============================================
+        List<String> nombres = Arrays.asList("Ana", "Carlos", "María", "Luis", "Elena");
+        
+        // Streams y lambdas
+        List<String> nombresFiltrados = nombres.stream()
+            .filter(n -> n.length() > 4)
+            .map(String::toUpperCase)
+            .sorted()
+            .collect(Collectors.toList());
+        
+        System.out.println("Nombres filtrados: " + nombresFiltrados);
+        
+        // ============================================
+        // PRUEBA 4: Uso de Optional
+        // ============================================
+        Optional<String> primerNombre = nombres.stream()
+            .filter(n -> n.startsWith("A"))
+            .findFirst();
+        
+        if (primerNombre.isPresent()) {
+            System.out.println("Primer nombre con A: " + primerNombre.get());
+        } else {
+            System.out.println("No se encontró nombre con A");
+        }
+        
+        // ============================================
+        // PRUEBA 5: Switch con expresión
+        // ============================================
+        int opcion = 2;
+        String resultado = switch (opcion) {
+            case 1 -> "Opción 1 seleccionada";
+            case 2 -> "Opción 2 seleccionada";
+            case 3 -> "Opción 3 seleccionada";
+            default -> {
+                yield "Opción no válida";
+            }
+        };
+        System.out.println("Resultado del switch: " + resultado);
+        
+        // ============================================
+        // PRUEBA 6: Try-catch con recursos
+        // ============================================
+        try (BufferedReader reader = new BufferedReader(new StringReader("Línea de prueba"))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                System.out.println("Línea leída: " + linea);
+            }
+        } catch (IOException e) {
+            System.err.println("Error al leer: " + e.getMessage());
+        } finally {
+            System.out.println("Bloque finally ejecutado");
+        }
+        
+        // ============================================
+        // PRUEBA 7: Uso de enum
+        // ============================================
+        EstadoOperacion estado = EstadoOperacion.EXITOSO;
+        switch (estado) {
+            case EXITOSO -> System.out.println("Operación exitosa");
+            case FALLIDO -> System.out.println("Operación fallida");
+            case EN_PROCESO -> System.out.println("Operación en proceso");
+            case CANCELADO -> System.out.println("Operación cancelada");
+        }
+        
+        // ============================================
+        // PRUEBA 8: Manejo de excepciones
+        // ============================================
+        try {
+            int resultadoDivision = 10 / 0;
+        } catch (ArithmeticException e) {
+            System.err.println("Error: División entre cero");
+            throw new RuntimeException("Excepción personalizada", e);
+        } finally {
+            System.out.println("Bloque finally de división");
+        }
+        
+        // ============================================
+        // PRUEBA 9: Uso de synchronized
+        // ============================================
+        synchronized (instancia1) {
+            instancia1.actualizarTimestamp();
+            System.out.println("Timestamp actualizado: " + instancia1.getTimestamp());
+        }
+        
+        // ============================================
+        // PRUEBA 10: Uso de generics y varargs
+        // ============================================
+        @SuppressWarnings("unchecked")
+        List<Integer> listaGenerica = Arrays.asList(1, 2, 3, 4, 5);
+        double promedio = calcularPromedio(listaGenerica);
+        System.out.println("Promedio calculado: " + promedio);
+        
+        // ============================================
+        // PRUEBA 11: Uso de instanceof con pattern matching
+        // ============================================
+        Object objeto = "Hola Mundo";
+        if (objeto instanceof String texto) {
+            System.out.println("Es un String: " + texto.length());
+        }
+        
+        // ============================================
+        // PRUEBA 12: Operadores ternarios anidados
+        // ============================================
+        int x = 10, y = 20;
+        int max = (x > y) ? x : (y > x) ? y : 0;
+        System.out.println("Máximo: " + max);
+        
+        // ============================================
+        // PRUEBA 13: Bucles anidados y etiquetas
+        // ============================================
+        externo:
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) {
+                if (i == 2 && j == 2) {
+                    break externo;
+                }
+                System.out.println("i=" + i + ", j=" + j);
+            }
+        }
+        
+        // ============================================
+        // PRUEBA 14: Lambda con múltiples parámetros
+        // ============================================
+        BiFunction<Integer, Integer, Integer> sumador = (a, b) -> a + b;
+        int suma = sumador.apply(10, 20);
+        System.out.println("Suma con lambda: " + suma);
+        
+        // ============================================
+        // PRUEBA 15: Uso de var (inferencia de tipos)
+        // ============================================
+        var variableLocal = "Texto inferido";
+        var listaLocal = new ArrayList<String>();
+        listaLocal.add("Elemento 1");
+        listaLocal.add("Elemento 2");
+        System.out.println("Var local: " + variableLocal);
+        System.out.println("Lista con var: " + listaLocal);
+        
+        System.out.println("=== FIN DE PRUEBA DEL ANALIZADOR ===");
+    }
+}
