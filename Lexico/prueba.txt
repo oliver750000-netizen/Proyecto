@@ -1,0 +1,90 @@
+public class Ejercicio1 {
+    public static void main(String[] args) {
+
+        byte edadByte = 20;
+        short edadShort = 300;
+        int numero = 10;
+        long numeroGrande = 100000L;
+        float promedioFloat = 9.5f;
+        double promedioDouble = 9.876;
+        char letra = 'A';
+        boolean activo = true;
+        String nombre = "Juan";
+
+        int[] numeros = {1, 2, 3, 4, 5};
+
+        int suma = numero + 5;
+        int resta = numero - 3;
+        int multiplicacion = numero * 2;
+        int division = numero / 2;
+        int modulo = numero % 3;
+
+        if (numero > 10) {
+            System.out.println("Mayor que 10");
+        } else if (numero == 10) {
+            System.out.println("Igual a 10");
+        } else {
+            System.out.println("Menor que 10");
+        }
+
+        if (promedioDouble >= 9.0) {
+            System.out.println("Promedio alto");
+        }
+
+        if (edadByte < edadShort) {
+            System.out.println("Edad byte menor que short");
+        }
+
+        if (numero != 0) {
+            System.out.println("Numero diferente de cero");
+        }
+
+        for (int i = 0; i < 5; i++) {
+            System.out.println(i);
+        }
+
+        int contador = 0;
+        while (contador <= 3) {
+            System.out.println(contador);
+            contador++;
+        }
+
+        int x = 0;
+        do {
+            System.out.println(x);
+            x++;
+        } while (x < 3);
+
+        for (int valor : numeros) {
+            System.out.println(valor);
+        }
+
+        Persona persona = new Persona();
+        persona.setNombre("Ana");
+        persona.setEdad(25);
+
+        System.out.println(persona.getNombre());
+        System.out.println(persona.getEdad());
+    }
+}
+
+class Persona {
+    private String nombre;
+    private int edad;
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public int getEdad() {
+        return edad;
+    }
+
+    public void setEdad(int edad) {
+        this.edad = edad;
+    }
+}
