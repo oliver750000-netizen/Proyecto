@@ -11,17 +11,10 @@ from ExprParser import ExprParser
 
 # Clase para guardar errores lexicos
 class ErroresLexicos(ErrorListener):
-
-    # Constructor
     def __init__(self):
-
-        # Lista donde guardaremos los errores
         self.lista = []
 
-    # Metodo que ANTLR ejecuta cuando encuentra error lexico
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-
-        # Guardamos el error en la lista
         self.lista.append({
             "linea": line,
             "columna": column,
@@ -31,140 +24,126 @@ class ErroresLexicos(ErrorListener):
 
 # Clase para hacer el analisis lexico y sintactico
 class AnalizadorLexico:
-
-    # Constructor
     def __init__(self):
-
-        # Variable para guardar el lexer
         self.lexer = None
-
-        # Variable para guardar los tokens
         self.tokens = None
-
-        # Variable para guardar el parser
         self.parser = None
-
-        # Variable para guardar el arbol sintactico
         self.arbol = None
-
-        # Objeto para guardar errores lexicos
         self.errores = ErroresLexicos()
-
-        # Lista para guardar errores sintacticos
         self.errores_sintacticos = []
+        self.arbol_json = None
+        self.debug_info = []  # Para depuración
 
-    # Metodo para analizar codigo
     def analizar(self, codigo):
-
-        # ============================================
+        self.debug_info = []
+        
         # ANÁLISIS LÉXICO
-        # ============================================
-        # Convertimos el texto en entrada para ANTLR
         entrada = InputStream(codigo)
-
-        # Creamos el lexer
         self.lexer = ExprLexer(entrada)
-
-        # Quitamos los errores normales de ANTLR
         self.lexer.removeErrorListeners()
-
-        # Agregamos nuestro capturador de errores
         self.lexer.addErrorListener(self.errores)
-
-        # Creamos el flujo de tokens
         self.tokens = CommonTokenStream(self.lexer)
-
-        # Leemos todos los tokens
         self.tokens.fill()
-
-        # ============================================
+        
+        # Verificar tokens generados
+        self.debug_info.append(f"Tokens generados: {len(self.tokens.tokens)}")
+        
         # ANÁLISIS SINTÁCTICO
-        # ============================================
-        # Reiniciamos el stream de tokens para el parser
         self.tokens.seek(0)
-        
-        # Creamos el parser
         self.parser = ExprParser(self.tokens)
-        
-        # Limpiamos errores anteriores
         self.errores_sintacticos = []
+        self.arbol_json = None
         
         try:
             # Intentamos analizar
-            self.arbol = self.parser.root()
+            self.arbol = self.parser.compilationUnit()
+            self.debug_info.append("Árbol generado correctamente")
             
-            # Guardamos los errores sintácticos
-            if self.parser.getNumberOfSyntaxErrors() > 0:
-                # ANTLR ya imprime los errores, pero los capturamos
-                pass
+            # Convertir el árbol a formato JSON
+            if self.arbol is not None:
+                self.arbol_json = self._arbol_a_json(self.arbol)
+                self.debug_info.append("Árbol convertido a JSON")
+            else:
+                self.debug_info.append("El árbol es None")
                 
         except Exception as e:
+            error_msg = f"Error al analizar: {str(e)}"
             self.errores_sintacticos.append({
                 "linea": 1,
                 "columna": 1,
-                "mensaje": f"Error al analizar: {str(e)}"
+                "mensaje": error_msg
             })
+            self.debug_info.append(f"Error: {error_msg}")
             self.arbol = None
 
-    # Metodo para obtener tokens como lista
+    def _arbol_a_json(self, nodo):
+        """Convierte el árbol de ANTLR a formato JSON"""
+        if nodo is None:
+            return None
+        
+        try:
+            # Si es un nodo hoja (token)
+            if nodo.getChildCount() == 0:
+                texto = nodo.getText()
+                return {
+                    "tipo": type(nodo).__name__,
+                    "texto": texto
+                }
+            
+            # Si es un nodo interno
+            hijos = []
+            for i in range(nodo.getChildCount()):
+                hijo = nodo.getChild(i)
+                hijo_json = self._arbol_a_json(hijo)
+                if hijo_json is not None:
+                    hijos.append(hijo_json)
+            
+            return {
+                "tipo": type(nodo).__name__,
+                "hijos": hijos
+            }
+        except Exception as e:
+            self.debug_info.append(f"Error en _arbol_a_json: {str(e)}")
+            return None
+
     def obtener_tokens(self):
-
-        # Creamos una lista vacia
         resultado = []
-
-        # Recorremos todos los tokens
         for token in self.tokens.tokens:
-
-            # Saltamos EOF porque es el fin del archivo
             if token.type == Token.EOF:
-
-                # Continuamos con el siguiente token
                 continue
-
-            # Obtenemos el nombre del token
-            nombre_token = self.lexer.symbolicNames[token.type]
-
-            # Agregamos el token a la lista
-            resultado.append({
-                "lexema": token.text,
-                "token": nombre_token,
-                "tipo": token.type,
-                "linea": token.line,
-                "columna": token.column
-            })
-
-        # Retornamos la lista de tokens
+            try:
+                nombre_token = self.lexer.symbolicNames[token.type]
+                resultado.append({
+                    "lexema": token.text,
+                    "token": nombre_token,
+                    "tipo": token.type,
+                    "linea": token.line,
+                    "columna": token.column
+                })
+            except:
+                resultado.append({
+                    "lexema": token.text,
+                    "token": "DESCONOCIDO",
+                    "tipo": token.type,
+                    "linea": token.line,
+                    "columna": token.column
+                })
         return resultado
 
-    # Metodo para obtener errores lexicos
     def obtener_errores(self):
-
-        # Retornamos la lista de errores
         return self.errores.lista
 
-    # ============================================
-    # NUEVOS MÉTODOS PARA ANÁLISIS SINTÁCTICO
-    # ============================================
-
-    # Metodo para verificar si la sintaxis es correcta
     def sintaxis_correcta(self):
-        """Retorna True si no hay errores de sintaxis"""
         if self.parser is None:
             return False
         return self.parser.getNumberOfSyntaxErrors() == 0
 
-    # Metodo para obtener el número de errores sintácticos
     def obtener_errores_sintacticos(self):
-        """Retorna la lista de errores sintácticos"""
-        # ANTLR imprime errores en consola, pero podemos capturarlos
-        # Por ahora retornamos el conteo
         if self.parser is None:
             return 0
         return self.parser.getNumberOfSyntaxErrors()
 
-    # Metodo para obtener el arbol sintactico como texto
     def obtener_arbol_sintactico(self):
-        """Retorna el árbol sintáctico como string"""
         if self.arbol is None:
             return "No se pudo generar el árbol sintáctico"
         try:
@@ -172,13 +151,19 @@ class AnalizadorLexico:
         except Exception as e:
             return f"Error al generar el árbol: {str(e)}"
 
-    # Metodo para obtener el estado completo del análisis
+    def obtener_arbol_json(self):
+        return self.arbol_json
+
+    def obtener_debug_info(self):
+        return self.debug_info
+
     def obtener_analisis_completo(self):
-        """Retorna un diccionario con todos los resultados"""
         return {
             "tokens": self.obtener_tokens(),
             "errores_lexicos": self.obtener_errores(),
             "sintaxis_correcta": self.sintaxis_correcta(),
             "errores_sintacticos": self.obtener_errores_sintacticos(),
-            "arbol_sintactico": self.obtener_arbol_sintactico()
+            "arbol_sintactico": self.obtener_arbol_sintactico(),
+            "arbol_json": self.obtener_arbol_json(),
+            "debug_info": self.obtener_debug_info()
         }

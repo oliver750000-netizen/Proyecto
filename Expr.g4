@@ -1,10 +1,407 @@
 grammar Expr;
 
-root : expr EOF;
+// REGLAS DEL PARSER
 
-//
-expr : EOF ;
 
+compilationUnit
+    : packageDeclaration? importDeclaration* typeDeclaration* EOF
+    ;
+
+packageDeclaration
+    : PACK qualifiedName PUNTO_COMA
+    ;
+
+importDeclaration
+    : IMPO (STAT? PUNTO_COMA | qualifiedName (PUNTO POR)? PUNTO_COMA)
+    ;
+
+qualifiedName
+    : Identifier (PUNTO Identifier)*
+    ;
+
+typeDeclaration
+    : modifier* (classDeclaration | interfaceDeclaration | enumDeclaration) 
+    | PUNTO_COMA
+    ;
+
+modifier
+    : PUBL | PROT | PRIV | STAT | ABST | FINA | NATI | SYNC | TRAN | VOLA
+    | annotation
+    ;
+
+classDeclaration
+    : CLAS Identifier typeParameters? (EXTE typeType)? (IMPL typeList)? classBody
+    ;
+
+interfaceDeclaration
+    : INTE Identifier typeParameters? (EXTE typeList)? interfaceBody
+    ;
+
+enumDeclaration
+    : ENUM Identifier (IMPL typeList)? enumBody
+    ;
+
+classBody
+    : LLAV_IZQ classBodyDeclaration* LLAV_DER
+    ;
+
+classBodyDeclaration
+    : PUNTO_COMA
+    | STAT? block
+    | modifier* memberDeclaration
+    ;
+
+memberDeclaration
+    : methodDeclaration
+    | fieldDeclaration
+    | constructorDeclaration
+    | classDeclaration
+    | interfaceDeclaration
+    | enumDeclaration
+    | voidMethodDeclaration
+    ;
+
+interfaceBody
+    : LLAV_IZQ interfaceBodyDeclaration* LLAV_DER
+    ;
+
+interfaceBodyDeclaration
+    : modifier* interfaceMemberDeclaration
+    | PUNTO_COMA
+    ;
+
+interfaceMemberDeclaration
+    : constDeclaration
+    | methodHeader PUNTO_COMA
+    | classDeclaration
+    | interfaceDeclaration
+    | enumDeclaration
+    ;
+
+enumBody
+    : LLAV_IZQ enumConstants? (COMA enumConstants?)? PUNTO_COMA? enumBodyDeclarations? LLAV_DER
+    ;
+
+enumConstants
+    : Identifier arguments? (COMA Identifier arguments?)*
+    ;
+
+enumBodyDeclarations
+    : PUNTO_COMA classBodyDeclaration*
+    ;
+
+methodDeclaration
+    : typeType Identifier formalParameters (CORC_IZQ CORC_DER)* (THROWS qualifiedNameList)? methodBody
+    ;
+
+voidMethodDeclaration
+    : VOID Identifier formalParameters (CORC_IZQ CORC_DER)* (THROWS qualifiedNameList)? methodBody
+    ;
+
+methodHeader
+    : typeType Identifier formalParameters (CORC_IZQ CORC_DER)* (THROWS qualifiedNameList)?
+    | VOID Identifier formalParameters (CORC_IZQ CORC_DER)* (THROWS qualifiedNameList)?
+    ;
+
+constructorDeclaration
+    : Identifier formalParameters (THROWS qualifiedNameList)? constructorBody
+    ;
+
+fieldDeclaration
+    : typeType variableDeclarators PUNTO_COMA
+    ;
+
+constDeclaration
+    : typeType variableDeclarators PUNTO_COMA
+    ;
+
+variableDeclarators
+    : variableDeclarator (COMA variableDeclarator)*
+    ;
+
+variableDeclarator
+    : variableDeclaratorId (ASIG variableInitializer)?
+    ;
+
+variableDeclaratorId
+    : Identifier (CORC_IZQ CORC_DER)*
+    ;
+
+variableInitializer
+    : expression
+    | arrayInitializer
+    ;
+
+arrayInitializer
+    : LLAV_IZQ (variableInitializer (COMA variableInitializer)* (COMA)?)? LLAV_DER
+    ;
+
+formalParameters
+    : PARE_IZQ formalParameterList? PARE_DER
+    ;
+
+formalParameterList
+    : formalParameter (COMA formalParameter)*
+    ;
+
+formalParameter
+    : modifier* typeType variableDeclaratorId
+    ;
+
+typeType
+    : classOrInterfaceType
+    | primitiveType (CORC_IZQ CORC_DER)*
+    ;
+
+classOrInterfaceType
+    : Identifier typeArguments? (PUNTO Identifier typeArguments?)*
+    ;
+
+primitiveType
+    : BYTE | SHOR | INT | LONG | CHAR | FLOAT | DOUB | BOOL
+    ;
+
+typeList
+    : typeType (COMA typeType)*
+    ;
+
+typeParameters
+    : MENOR typeParameter (COMA typeParameter)* MAYOR
+    ;
+
+typeParameter
+    : Identifier (EXTE typeBound)?
+    ;
+
+typeBound
+    : typeType (AND typeType)*
+    ;
+
+typeArguments
+    : MENOR typeArgument (COMA typeArgument)* MAYOR
+    ;
+
+typeArgument
+    : typeType
+    | CONDI
+    | CONDI EXTE typeType
+    | CONDI SUPE typeType
+    ;
+
+qualifiedNameList
+    : qualifiedName (COMA qualifiedName)*
+    ;
+
+methodBody
+    : block
+    | PUNTO_COMA
+    ;
+
+constructorBody
+    : block
+    ;
+
+block
+    : LLAV_IZQ blockStatement* LLAV_DER
+    ;
+
+blockStatement
+    : modifier* localVariableDeclaration PUNTO_COMA
+    | statement
+    ;
+
+localVariableDeclaration
+    : typeType variableDeclarators
+    ;
+
+statement
+    : block
+    | IF pareExpression statement (ELSE statement)?
+    | FOR pareExpression? PUNTO_COMA expression? PUNTO_COMA expression? statement
+    | forStatement
+    | WHIL pareExpression statement
+    | DO statement WHIL pareExpression PUNTO_COMA
+    | TRY block (CATC pareExpression block)+ (FINALY block)?
+    | TRY resourceSpecification block (CATC pareExpression block)+ (FINALY block)?
+    | TRY resourceSpecification block (FINALY block)?
+    | SWIT pareExpression switchBlock
+    | SYNC pareExpression block
+    | RETU expression? PUNTO_COMA
+    | THRO expression PUNTO_COMA
+    | BREA Identifier? PUNTO_COMA
+    | CONT Identifier? PUNTO_COMA
+    | ASSE expression (SEPAR expression)? PUNTO_COMA
+    | PUNTO_COMA
+    | statementExpression PUNTO_COMA
+    | Identifier SEPAR statement
+    ;
+
+statementExpression
+    : expression
+    ;
+
+forStatement
+    : FOR PARE_IZQ enhancedForControl PARE_DER statement
+    ;
+
+enhancedForControl
+    : modifier* typeType variableDeclaratorId SEPAR expression
+    ;
+
+switchBlock
+    : LLAV_IZQ switchBlockStatementGroup* switchLabel* LLAV_DER
+    ;
+
+switchBlockStatementGroup
+    : switchLabel+ blockStatement+
+    ;
+
+switchLabel
+    : CASE expression SEPAR
+    | DEFA SEPAR
+    ;
+
+resourceSpecification
+    : PARE_IZQ resources (PUNTO_COMA resources?)? PARE_DER
+    ;
+
+resources
+    : resource (PUNTO_COMA resource)*
+    ;
+
+resource
+    : modifier* classOrInterfaceType variableDeclaratorId ASIG expression
+    | Identifier
+    ;
+
+pareExpression
+    : PARE_IZQ expression PARE_DER
+    ;
+
+expression
+    : primary
+    | expression PUNTO Identifier
+    | expression PUNTO methodCall
+    | expression PUNTO THIS
+    | expression PUNTO NEW Identifier arguments
+    | expression CORC_IZQ expression CORC_DER
+    | expression PARE_IZQ PARE_DER
+    | expression PARE_IZQ expressionList? PARE_DER
+    | NEW classOrInterfaceType arguments (CORC_IZQ expression CORC_DER)* (CORC_IZQ CORC_DER)*
+    | NEW classOrInterfaceType CORC_IZQ expression CORC_DER (CORC_IZQ expression CORC_DER)*
+    | NEW primitiveType CORC_IZQ expression CORC_DER (CORC_IZQ expression CORC_DER)*
+    | expression INCRE
+    | expression DISMI
+    | MAS expression
+    | MENOS expression
+    | INCRE expression
+    | DISMI expression
+    | COMPLE expression
+    | NOT expression
+    | expression POR expression
+    | expression DIVI expression
+    | expression PORSE expression
+    | expression MAS expression
+    | expression MENOS expression
+    | expression DESPL_IZQ expression
+    | expression DESPL_DER expression
+    | expression DESPL_DER_SIN_SIGNO expression
+    | expression MENOR expression
+    | expression MAYOR expression
+    | expression MENOR_ASIG expression
+    | expression MAYOR_ASIG expression
+    | expression INST expression
+    | expression IGUAL_QUE expression
+    | expression DIFER_DE expression
+    | expression AND_BIT expression
+    | expression XOR expression
+    | expression OR_BIT expression
+    | expression AND expression
+    | expression OR expression
+    | expression CONDI expression SEPAR expression
+    | expression ASIG expression
+    | expression SUMA_ASIG expression
+    | expression RESTA_ASIG expression
+    | expression MULTI_ASIG expression
+    | expression DIVI_ASIG expression
+    | expression MODU_ASIG expression
+    | expression AND_ASIG expression
+    | expression OR_ASIG expression
+    | expression XOR_ASIG expression
+    | expression DESPLA_IZQ_ASIG expression
+    | expression DESPLA_DER_ASIG expression
+    | expression DESPLA_DER_SIN_SIGNO_ASIG expression
+    | lambdaExpression
+    ;
+
+methodCall
+    : Identifier arguments
+    ;
+
+primary
+    : PARE_IZQ expression PARE_DER
+    | THIS
+    | SUPE
+    | literal
+    | Identifier
+    | classOrInterfaceType SUPE
+    | classOrInterfaceType THIS
+    | typeType PUNTO CLAS
+    | VOID PUNTO CLAS
+    ;
+
+arguments
+    : PARE_IZQ expressionList? PARE_DER
+    ;
+
+expressionList
+    : expression (COMA expression)*
+    ;
+
+lambdaExpression
+    : lambdaParameters LAMBDA expression
+    | lambdaParameters LAMBDA block
+    ;
+
+lambdaParameters
+    : Identifier
+    | PARE_IZQ formalParameterList? PARE_DER
+    | PARE_IZQ Identifier (COMA Identifier)* PARE_DER
+    ;
+
+annotation
+    : ANOTACION Identifier (PARE_IZQ (elementValuePairs | elementValue)? PARE_DER)?
+    ;
+
+elementValuePairs
+    : elementValuePair (COMA elementValuePair)*
+    ;
+
+elementValuePair
+    : Identifier ASIG elementValue
+    ;
+
+elementValue
+    : expression
+    | annotation
+    | elementValueArrayInitializer
+    ;
+
+elementValueArrayInitializer
+    : LLAV_IZQ (elementValue (COMA elementValue)* (COMA)?)? LLAV_DER
+    ;
+
+literal
+    : INTEGER_LITERAL
+    | FLOAT_LITERAL
+    | CHARACTER_LITERAL
+    | STRING_LITERAL
+    | TRUE
+    | FALSE
+    | NULL
+    ;
+
+// TOKENS LEXICOS 
 //Palabras reservadas y palabras clave contextuales
 SYSTEM: 'System';
 OUT: 'out';
@@ -43,7 +440,7 @@ ELSE: 'else';
 ENUM: 'enum';
 EXTE: 'extends';
 FINA: 'final';
-FINALY: 'finalLy';
+FINALY: 'finally';
 FLOAT: 'float';
 FOR: 'for';
 GOTO: 'goto';
@@ -170,7 +567,6 @@ SUPPRESSWARNINGS: '@SuppressWarnings';
 FUNCTIONALINTERFACE: '@FunctionalInterface';
 SAFEVARARGS: '@SafeVarargs';
 
-
 //OPERADORES
 ASIG: '=';
 SUMA_ASIG: '+=';
@@ -224,14 +620,36 @@ COMA: ',';
 PUNTO: '.';
 VARARGS: '...';
 ANOTACION: '@';
-EXP_REGU: [a-zA-Z_$][a-zA-Z0-9_$]*;
-NUM: [0-9]+;
-NUM_REGU : [0-9]+ '.' [0-9]+ [fFdD]?;
-CADENA: '"' ( '\\' . | ~["\\] )* '"';
-REPRE_CHAR: '\'' ( '\\' . | ~['\\\r\n] ) '\'';
-WS: [ \t\r\n]+ -> skip ;
 
+//TOKENS LÉXICOS
+Identifier
+    : [a-zA-Z_$][a-zA-Z0-9_$]*
+    ;
 
-/*  RODRIGUEZ BELMAN DIEGO ALBERTO 20031358
-    ERICK EDUARDO HERNÁNDEZ ARIZA 20031179
-    OLIVER VÁSQUEZ SANTIAGO 22031030 */ 
+INTEGER_LITERAL
+    : [0-9]+
+    ;
+
+FLOAT_LITERAL
+    : [0-9]+ '.' [0-9]+ [fFdD]?
+    ;
+
+CHARACTER_LITERAL
+    : '\'' ( '\\' . | ~['\\\r\n] ) '\''
+    ;
+
+STRING_LITERAL
+    : '"' ( '\\' . | ~["\\] )* '"'
+    ;
+
+WS
+    : [ \t\r\n]+ -> skip
+    ;
+
+COMMENT
+    : '/*' .*? '*/' -> skip
+    ;
+
+LINE_COMMENT
+    : '//' ~[\r\n]* -> skip
+    ;

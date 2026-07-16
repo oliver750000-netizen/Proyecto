@@ -1,302 +1,516 @@
 import streamlit as st
-from archivo import Archivo
 from analizador_lexico import AnalizadorLexico
+from archivo import Archivo
+import io
+import json
+import pandas as pd
 
+st.set_page_config(
+    page_title="Analizador Léxico y Sintáctico",
+    page_icon="⚙️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 class App:
-
     def __init__(self):
-        st.set_page_config(page_title="Analizador Léxico y Sintáctico", layout="wide")
-        self.analizador = AnalizadorLexico()
-
+        self.analizador = None
+        
     def ejecutar(self):
-        st.title("🔍 Analizador Léxico y Sintáctico con ANTLR")
         st.markdown("""
-        <div style="background: #f0f2f6; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-            <p style="margin: 0;">
-                📤 Sube un archivo con código Java para analizar su estructura 
-                <strong>léxica</strong> (tokens) y <strong>sintáctica</strong> (árbol de análisis).
-            </p>
-            <p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">
-                Extensiones soportadas: .txt, .java, .jav, .jsp
-            </p>
-        </div>
+            <style>
+                .main {
+                    background-color: #0e1117;
+                }
+                .stApp {
+                    background-color: #0e1117;
+                }
+                h1, h2, h3, h4, h5, h6 {
+                    color: #ffffff !important;
+                }
+                p, li, span, div {
+                    color: #e0e0e0 !important;
+                }
+                .card {
+                    background: #1a1d23;
+                    border-radius: 12px;
+                    padding: 1.5rem;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                    border: 1px solid #2d3138;
+                    margin-bottom: 1.5rem;
+                }
+                .card-title {
+                    font-family: 'Segoe UI', sans-serif;
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    color: #ffffff !important;
+                    margin-bottom: 0.75rem;
+                    padding-bottom: 0.5rem;
+                    border-bottom: 2px solid #2d3138;
+                }
+                .metric-container {
+                    background: #1a1d23;
+                    border-radius: 10px;
+                    padding: 1.25rem;
+                    text-align: center;
+                    border: 1px solid #2d3138;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                    transition: all 0.2s ease;
+                }
+                .metric-container:hover {
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+                    transform: translateY(-2px);
+                    border-color: #4a90e2;
+                }
+                .metric-value {
+                    font-size: 2rem;
+                    font-weight: 700;
+                    color: #ffffff !important;
+                }
+                .metric-label {
+                    font-size: 0.85rem;
+                    color: #aaaaaa !important;
+                    font-weight: 500;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                .stButton > button {
+                    background: #4a90e2;
+                    color: white !important;
+                    font-weight: 600;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 0.6rem 1.5rem;
+                    transition: all 0.2s ease;
+                    width: 100%;
+                }
+                .stButton > button:hover {
+                    background: #357abd;
+                    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+                    transform: translateY(-1px);
+                }
+                .divider {
+                    border: none;
+                    height: 1px;
+                    background: linear-gradient(to right, transparent, #2d3138, transparent);
+                    margin: 2rem 0;
+                }
+                .footer {
+                    text-align: center;
+                    color: #666666 !important;
+                    font-size: 0.85rem;
+                    padding: 2rem 0 1rem 0;
+                    border-top: 1px solid #2d3138;
+                    margin-top: 2rem;
+                }
+                .footer p {
+                    color: #666666 !important;
+                }
+                .stTabs [data-baseweb="tab-list"] {
+                    gap: 2rem;
+                    background: #1a1d23;
+                    padding: 0.5rem 1rem;
+                    border-radius: 10px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                }
+                .stTabs [data-baseweb="tab"] {
+                    font-weight: 500;
+                    color: #aaaaaa !important;
+                }
+                .stTabs [data-baseweb="tab"][aria-selected="true"] {
+                    color: #4a90e2 !important;
+                    font-weight: 600;
+                }
+                .dataframe {
+                    color: #e0e0e0 !important;
+                }
+                .dataframe thead tr th {
+                    background-color: #1a1d23 !important;
+                    color: #ffffff !important;
+                }
+                .dataframe tbody tr td {
+                    background-color: #0e1117 !important;
+                    color: #e0e0e0 !important;
+                }
+                .stFileUploader > div {
+                    background-color: #1a1d23;
+                    border: 1px dashed #2d3138;
+                    border-radius: 8px;
+                }
+                .stFileUploader > div:hover {
+                    border-color: #4a90e2;
+                }
+                .stTextArea textarea {
+                    background-color: #1a1d23 !important;
+                    color: #e0e0e0 !important;
+                    border: 1px solid #2d3138 !important;
+                    border-radius: 8px !important;
+                }
+                .stAlert {
+                    background-color: #1a1d23 !important;
+                    border: 1px solid #2d3138 !important;
+                }
+                .stAlert div {
+                    color: #e0e0e0 !important;
+                }
+                [data-testid="metric-container"] {
+                    background-color: #1a1d23 !important;
+                    border: 1px solid #2d3138 !important;
+                    border-radius: 10px !important;
+                    padding: 1rem !important;
+                }
+                [data-testid="metric-container"] label {
+                    color: #aaaaaa !important;
+                }
+                [data-testid="metric-container"] div {
+                    color: #ffffff !important;
+                }
+                .stSpinner > div {
+                    border-color: #4a90e2 transparent #4a90e2 transparent !important;
+                }
+            </style>
         """, unsafe_allow_html=True)
 
-        # ============================================
-        # SIDEBAR - EJEMPLOS (MANTENER IGUAL)
-        # ============================================
-        with st.sidebar:
-            st.header("📋 Ejemplos de Código")
-            st.markdown("Haz clic para cargar un ejemplo:")
+        st.markdown("""
+            <div style="text-align: center; padding: 1rem 0 0.5rem 0;">
+                <h1 style="font-size: 2.8rem; font-weight: 700; color: #ffffff; letter-spacing: -1px; margin: 0;">
+                    Analizador Lexico y Sintactico
+                </h1>
+                <p style="color: #aaaaaa; font-size: 1.1rem; font-weight: 300; margin-top: 0.25rem;">
+                    Analisis de codigo fuente
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
 
-            ejemplos = {
-                "Hola Mundo": '''
-public class HolaMundo {
-    public static void main(String[] args) {
-        System.out.println("Hola Mundo");
-    }
-}
-''',
-                "Variables y Operadores": '''
-public class Operadores {
-    public static void main(String[] args) {
-        int x = 10;
-        int y = 5;
-        int suma = x + y;
-        int resta = x - y;
-        int multi = x * y;
-        int div = x / y;
-        boolean mayor = x > y;
-        boolean igual = x == y;
-    }
-}
-''',
-                "Estructuras de Control": '''
-public class Control {
-    public static void main(String[] args) {
-        for (int i = 0; i < 10; i++) {
-            if (i % 2 == 0) {
-                System.out.println("Par: " + i);
-            }
-        }
-        
-        String[] nombres = {"Ana", "Carlos"};
-        for (String nombre : nombres) {
-            System.out.println(nombre);
-        }
-    }
-}
-''',
-                "Con Errores": '''
-public class ConErrores {
-    public static void main(String[] args) {
-        int x = 
-        System.out.println("Error de sintaxis");
-    }
-}
-'''
-            }
+        if 'codigo_analizar' not in st.session_state or not st.session_state.get('codigo_analizar'):
+            st.markdown("""
+            <div style="background: #1a5c7a; padding: 1.5rem; border-radius: 10px; border-left: 5px solid #4a90e2; margin-bottom: 1.5rem;">
+                <h3 style="color: #ffffff; margin-top: 0;">Bienvenido al Analizador Lexico y Sintactico</h3>
+                <p style="color: #e0e0e0; margin-bottom: 0.75rem;">
+                    Para comenzar, puedes:
+                </p>
+                <ul style="color: #e0e0e0; margin-bottom: 0.75rem;">
+                    <li><strong>Cargar un archivo</strong> desde la pestaña <strong>"Cargar Archivo"</strong></li>
+                    <li><strong>Ingresar codigo manualmente</strong> desde la pestaña <strong>"Entrada Manual"</strong></li>
+                </ul>
+                <p style="color: #e0e0e0; margin-bottom: 0.75rem;">
+                    El analisis mostrara:
+                </p>
+                <ul style="color: #e0e0e0; margin-bottom: 0.75rem;">
+                    <li>Lista de tokens generados</li>
+                    <li>Errores lexicos y sintacticos encontrados</li>
+                    <li>Arbol sintactico</li>
+                    <li>Reporte completo en formato JSON</li>
+                </ul>
+                <div style="background: #0e1117; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 0.75rem; border: 1px solid #2d3138; font-size: 0.9rem; color: #aaaaaa;">
+                    <strong style="color: #4a90e2;">Equipo de desarrollo:</strong><br>
+                    RODRIGUEZ BELMAN DIEGO ALBERTO - 20031358<br>
+                    ERICK EDUARDO HERNANDEZ ARIZA - 20031179<br>
+                    OLIVER VASQUEZ SANTIAGO - 22031030
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            for nombre, codigo in ejemplos.items():
-                if st.button(f"📄 {nombre}", key=f"ejemplo_{nombre}", use_container_width=True):
-                    import io
-                    archivo_simulado = io.BytesIO(codigo.encode('utf-8'))
-                    archivo_simulado.name = f"ejemplo_{nombre}.java"
-                    st.session_state['archivo_ejemplo'] = archivo_simulado
+        tab1, tab2 = st.tabs(["Cargar Archivo", "Entrada Manual"])
+
+        with tab1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown('<p class="card-title">Seleccionar archivo fuente</p>', unsafe_allow_html=True)
+            
+            extensiones_soportadas = ["txt", "java", "jav", "class", "jsp", "jspx", "properties", "xml", "html", "css", "js", "py"]
+            
+            archivo_subido = st.file_uploader(
+                "Sube tu archivo",
+                type=extensiones_soportadas,
+                help=f"Formatos soportados: {', '.join(['.' + ext for ext in extensiones_soportadas])}"
+            )
+            
+            if archivo_subido is not None:
+                archivo = Archivo(archivo_subido)
+                
+                if not archivo.es_extension_soportada():
+                    st.error(f"Extension no soportada: {archivo.obtener_extension()}")
+                    st.info(f"Extensiones permitidas: {', '.join(['.' + ext for ext in archivo.EXTENSIONES_SOPORTADAS])}")
+                else:
+                    contenido = archivo.leer()
+                    
+                    if "Error" not in contenido:
+                        info = archivo.obtener_info()
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Nombre", info['nombre'])
+                        with col2:
+                            st.metric("Extension", info['extension'])
+                        with col3:
+                            st.metric("Tipo", info['tipo'])
+                        with col4:
+                            lineas = len(contenido.split('\n'))
+                            st.metric("Lineas", lineas)
+                        
+                        with st.expander("Vista previa del codigo", expanded=True):
+                            lenguaje = info['extension'].replace('.', '')
+                            if lenguaje in ['java', 'jav', 'class']:
+                                lenguaje = 'java'
+                            elif lenguaje in ['py']:
+                                lenguaje = 'python'
+                            elif lenguaje in ['js']:
+                                lenguaje = 'javascript'
+                            elif lenguaje in ['html']:
+                                lenguaje = 'html'
+                            elif lenguaje in ['css']:
+                                lenguaje = 'css'
+                            elif lenguaje in ['xml']:
+                                lenguaje = 'xml'
+                            elif lenguaje in ['properties']:
+                                lenguaje = 'properties'
+                            else:
+                                lenguaje = 'text'
+                            
+                            st.code(contenido, language=lenguaje)
+                            st.caption(f"Total: {len(contenido)} caracteres, {len(contenido.split('\n'))} lineas")
+                        
+                        if st.button("Analizar archivo", type="primary", use_container_width=True):
+                            st.session_state['codigo_analizar'] = contenido
+                            st.session_state['fuente_analisis'] = 'archivo'
+                            st.rerun()
+                    else:
+                        st.error(contenido)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with tab2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown('<p class="card-title">Ingresar codigo manualmente</p>', unsafe_allow_html=True)
+            
+            codigo_manual = st.text_area(
+                "Escribe o pega tu codigo:",
+                height=300,
+                placeholder="Ingrese su codigo fuente aqui...\n\nEjemplo:\npublic class Test {\n    public static void main(String[] args) {\n        int x = 5;\n        System.out.println(x);\n    }\n}",
+                help="Puede escribir cualquier codigo para analizar",
+                key="codigo_manual_textarea"
+            )
+            
+            if st.button("Analizar codigo", type="primary", use_container_width=True):
+                if codigo_manual.strip():
+                    st.session_state['codigo_analizar'] = codigo_manual
+                    st.session_state['fuente_analisis'] = 'manual'
+                    st.rerun()
+                else:
+                    st.warning("Por favor, ingrese codigo para analizar")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        if 'codigo_analizar' in st.session_state and st.session_state.get('codigo_analizar'):
+            codigo_a_analizar = st.session_state['codigo_analizar']
+            
+            st.markdown('<hr class="divider">', unsafe_allow_html=True)
+            st.markdown('<h2 style="font-weight: 600; color: #ffffff;">Resultados del Analisis</h2>', unsafe_allow_html=True)
+            
+            fuente = st.session_state.get('fuente_analisis', 'desconocida')
+            if fuente == 'archivo':
+                st.caption(f"Analizando codigo desde archivo: {len(codigo_a_analizar)} caracteres")
+            elif fuente == 'manual':
+                st.caption(f"Analizando codigo ingresado manualmente: {len(codigo_a_analizar)} caracteres")
+            
+            try:
+                self.analizador = AnalizadorLexico()
+                
+                with st.spinner("Analizando codigo..."):
+                    self.analizador.analizar(codigo_a_analizar)
+                
+                tokens = self.analizador.obtener_tokens()
+                errores_lexicos = self.analizador.obtener_errores()
+                sintaxis_correcta = self.analizador.sintaxis_correcta()
+                errores_sintacticos = self.analizador.obtener_errores_sintacticos()
+                arbol_texto = self.analizador.obtener_arbol_sintactico()
+                arbol_json = self.analizador.obtener_arbol_json()
+                
+                st.markdown("### Estadisticas del Analisis")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.markdown(f"""
+                        <div class="metric-container">
+                            <div class="metric-value">{len(codigo_a_analizar)}</div>
+                            <div class="metric-label">Caracteres</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f"""
+                        <div class="metric-container">
+                            <div class="metric-value">{len(tokens)}</div>
+                            <div class="metric-label">Tokens</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                with col3:
+                    st.markdown(f"""
+                        <div class="metric-container">
+                            <div class="metric-value">{len(errores_lexicos)}</div>
+                            <div class="metric-label">Errores Lexicos</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                with col4:
+                    estado = "Valido" if sintaxis_correcta else "Invalido"
+                    color = "#4caf50" if sintaxis_correcta else "#ef5350"
+                    st.markdown(f"""
+                        <div class="metric-container">
+                            <div class="metric-value" style="color: {color}; font-size: 1.5rem;">{estado}</div>
+                            <div class="metric-label">Sintaxis</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                
+                tab_tokens, tab_errores, tab_arbol, tab_reporte = st.tabs([
+                    "Tokens", 
+                    "Errores",
+                    "Arbol Sintactico",
+                    "Reporte"
+                ])
+                
+                with tab_tokens:
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.markdown('<p class="card-title">Tokens generados</p>', unsafe_allow_html=True)
+                    
+                    if tokens:
+                        df_tokens = pd.DataFrame(tokens)
+                        st.dataframe(df_tokens, use_container_width=True, height=400)
+                        st.caption(f"Total de tokens: {len(tokens)}")
+                    else:
+                        st.info("No se generaron tokens")
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                with tab_errores:
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.markdown('<p class="card-title">Errores Encontrados</p>', unsafe_allow_html=True)
+                    
+                    if errores_lexicos:
+                        st.markdown("**Errores Lexicos:**")
+                        df_errores = pd.DataFrame(errores_lexicos)
+                        st.dataframe(df_errores, use_container_width=True)
+                    else:
+                        st.success("No hay errores lexicos")
+                    
+                    if errores_sintacticos > 0:
+                        st.markdown("**Errores Sintacticos:**")
+                        st.warning(f"Se encontraron {errores_sintacticos} errores de sintaxis")
+                    else:
+                        st.success("No hay errores sintacticos")
+                    
+                    total_errores = len(errores_lexicos) + errores_sintacticos
+                    if total_errores > 0:
+                        st.info(f"Total de errores: {total_errores} ({len(errores_lexicos)} lexicos, {errores_sintacticos} sintacticos)")
+                    else:
+                        st.success("No se encontraron errores. El codigo es valido.")
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                with tab_arbol:
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.markdown('<p class="card-title">Arbol Sintactico</p>', unsafe_allow_html=True)
+                    
+                    if arbol_json:
+                        # Mostrar árbol en formato JSON
+                        with st.expander("Ver árbol en formato JSON", expanded=True):
+                            st.json(arbol_json)
+                        
+                        # Mostrar árbol en formato texto (toStringTree de ANTLR)
+                        with st.expander("Ver árbol en formato texto"):
+                            st.code(arbol_texto, language="text")
+                        
+                        # Descargar árbol como JSON
+                        arbol_json_str = json.dumps(arbol_json, indent=2, ensure_ascii=False)
+                        st.download_button(
+                            label="Descargar Arbol Sintactico (JSON)",
+                            data=arbol_json_str,
+                            file_name="arbol_sintactico.json",
+                            mime="application/json",
+                            use_container_width=True
+                        )
+                        
+                        # Intentar mostrar una visualización jerárquica
+                        with st.expander("Ver árbol en formato jerárquico"):
+                            def mostrar_nodo(nodo, nivel=0):
+                                indent = "  " * nivel
+                                if 'texto' in nodo:
+                                    st.text(f"{indent}├── {nodo['tipo']}: {nodo['texto']}")
+                                else:
+                                    st.text(f"{indent}├── {nodo['tipo']}")
+                                    if 'hijos' in nodo:
+                                        for hijo in nodo['hijos']:
+                                            mostrar_nodo(hijo, nivel + 1)
+                            
+                            if arbol_json:
+                                mostrar_nodo(arbol_json)
+                    else:
+                        st.info("No se pudo generar el árbol sintáctico. Verifica que el código sea válido.")
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                with tab_reporte:
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.markdown('<p class="card-title">Reporte Completo</p>', unsafe_allow_html=True)
+                    
+                    tipos_unicos = len(set(t['token'] for t in tokens)) if tokens else 0
+                    
+                    reporte = {
+                        "analisis": {
+                            "total_tokens": len(tokens),
+                            "tipos_unicos": tipos_unicos,
+                            "errores_lexicos": len(errores_lexicos),
+                            "errores_sintacticos": errores_sintacticos,
+                            "sintaxis_correcta": sintaxis_correcta
+                        },
+                        "estadisticas": {
+                            "caracteres": len(codigo_a_analizar),
+                            "lineas": len(codigo_a_analizar.split('\n'))
+                        },
+                        "fuente": fuente,
+                        "arbol_sintactico": arbol_json if arbol_json else arbol_texto,
+                        "tokens_muestra": tokens[:5] if tokens else []
+                    }
+                    
+                    st.json(reporte)
+                    
+                    reporte_json = json.dumps(reporte, indent=2, ensure_ascii=False)
+                    st.download_button(
+                        label="Descargar Reporte (JSON)",
+                        data=reporte_json,
+                        file_name=f"reporte_analisis_{fuente}.json",
+                        mime="application/json",
+                        use_container_width=True
+                    )
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.markdown('<hr class="divider">', unsafe_allow_html=True)
+                
+                col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+                with col_btn2:
+                    if st.button("Nuevo Analisis", type="secondary", use_container_width=True):
+                        if 'codigo_analizar' in st.session_state:
+                            del st.session_state['codigo_analizar']
+                        if 'fuente_analisis' in st.session_state:
+                            del st.session_state['fuente_analisis']
+                        st.rerun()
+                
+            except Exception as e:
+                st.error(f"Error durante el analisis: {str(e)}")
+                st.exception(e)
+                
+                if st.button("Reintentar", use_container_width=True):
+                    if 'codigo_analizar' in st.session_state:
+                        del st.session_state['codigo_analizar']
                     st.rerun()
 
-            st.divider()
-            st.markdown("**ℹ️ Información:**")
-            st.caption("📊 El análisis muestra los tokens y el árbol sintáctico del código.")
-
-        # ============================================
-        # SUBIR ARCHIVO (MANTENER IGUAL)
-        # ============================================
-        if 'archivo_ejemplo' in st.session_state:
-            archivo_subido = st.session_state['archivo_ejemplo']
-            st.success(f"✅ Ejemplo cargado: {archivo_subido.name}")
-            
-            if st.button("🗑️ Limpiar ejemplo"):
-                del st.session_state['archivo_ejemplo']
-                st.rerun()
-        else:
-            archivo_subido = st.file_uploader(
-                "📤 Sube tu archivo",
-                type=["txt", "java", "jav", "jsp"],
-                help="Formatos soportados: .txt, .java, .jav, .jsp"
-            )
-
-        if archivo_subido is None:
-            st.info("ℹ️ Sube un archivo o selecciona un ejemplo del sidebar")
-            return
-
-        # ============================================
-        # PROCESAR ARCHIVO (MANTENER IGUAL)
-        # ============================================
-        archivo = Archivo(archivo_subido)
-
-        if not archivo.es_extension_soportada():
-            st.error(f"❌ Extensión no soportada: {archivo.obtener_extension()}")
-            st.info(f"Extensiones permitidas: {', '.join(['.' + ext for ext in archivo.EXTENSIONES_SOPORTADAS])}")
-            return
-
-        codigo = archivo.leer()
-        info = archivo.obtener_info()
-
-        with st.expander("📁 Información del archivo", expanded=False):
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Nombre", info["nombre"])
-            col2.metric("Extensión", info["extension"])
-            col3.metric("Tipo", info["tipo"])
-            col4.metric("Líneas", len(codigo.split('\n')))
-
-        st.subheader("📝 Código fuente")
-        st.code(codigo, language="java")
-
-        # ============================================
-        # BOTÓN ANALIZAR (MANTENER IGUAL)
-        # ============================================
-        col_btn1, col_btn2 = st.columns([1, 5])
-        with col_btn1:
-            if st.button("🔍 Analizar", type="primary", use_container_width=True):
-                st.session_state.analizar = True
-
-        if not st.session_state.get('analizar', False):
-            st.info("Presiona 'Analizar' para iniciar el análisis")
-            return
-
-        # ============================================
-        # EJECUTAR ANÁLISIS (AQUÍ ESTÁ EL CAMBIO)
-        # ============================================
-        with st.spinner("🔍 Analizando código..."):
-            self.analizador.analizar(codigo)  # Esto ya hace ambos análisis
-
-        # ============================================
-        # MOSTRAR RESULTADOS (AQUÍ ESTÁN LOS CAMBIOS)
-        # ============================================
-        st.markdown("---")
-        st.header("📊 Resultados del Análisis")
-
-        # ============================================
-        # ESTADÍSTICAS (AGREGADO: errores sintácticos)
-        # ============================================
-        tokens = self.analizador.obtener_tokens()
-        errores_lexicos = self.analizador.obtener_errores()
-        sintaxis_correcta = self.analizador.sintaxis_correcta()  # NUEVO
-        errores_sintacticos = self.analizador.obtener_errores_sintacticos()  # NUEVO
-        arbol = self.analizador.obtener_arbol_sintactico()  # NUEVO
-
-        col1, col2, col3, col4 = st.columns(4)  # AHORA 4 COLUMNAS
-        col1.metric("📝 Tokens", len(tokens))
-        col2.metric("❌ Errores Léxicos", len(errores_lexicos))
-        col3.metric("🔍 Errores Sintácticos", errores_sintacticos)  # NUEVO
-        col4.metric("✅ Estado", "Válido" if sintaxis_correcta else "Inválido")  # NUEVO
-
-        # ============================================
-        # PESTAÑAS (AHORA CON SINTÁCTICO)
-        # ============================================
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "📝 Tokens", 
-            "🌳 Árbol Sintáctico",  # NUEVA
-            "⚠️ Errores",
-            "📋 Reporte"
-        ])
-
-        # ============================================
-        # TAB 1: TOKENS (IGUAL)
-        # ============================================
-        with tab1:
-            st.subheader("📝 Lista de Tokens")
-
-            if len(tokens) == 0:
-                st.warning("No se encontraron tokens en el código")
-            else:
-                import pandas as pd
-                df_tokens = pd.DataFrame(tokens)
-                st.dataframe(df_tokens, use_container_width=True, height=400)
-
-                st.caption("🔤 Vista visual de tokens:")
-                tokens_html = " ".join([
-                    f'<span style="background: #e2e8f0; padding: 4px 10px; border-radius: 5px; margin: 3px; display: inline-block; font-family: monospace; font-size: 12px;">'
-                    f'<span style="color: #4a5568; font-weight: 600;">{t["token"]}</span> '
-                    f'<span style="color: #e53e3e;">{repr(t["lexema"])}</span>'
-                    f'</span>'
-                    for t in tokens[:50]
-                ])
-                st.markdown(f'<div style="background: #f7fafc; padding: 15px; border-radius: 8px;">{tokens_html}</div>', unsafe_allow_html=True)
-
-                if len(tokens) > 50:
-                    st.caption(f"... y {len(tokens) - 50} tokens más")
-
-        # ============================================
-        # TAB 2: ÁRBOL SINTÁCTICO (NUEVA)
-        # ============================================
-        with tab2:
-            st.subheader("🌳 Árbol Sintáctico")
-
-            if sintaxis_correcta:
-                st.success("✅ El código es sintácticamente correcto")
-            else:
-                st.error(f"❌ El código tiene {errores_sintacticos} errores de sintaxis")
-
-            st.markdown("**Estructura del análisis:**")
-            st.code(arbol, language="text", line_numbers=True)
-
-        # ============================================
-        # TAB 3: ERRORES (IGUAL PERO CON SINTÁCTICOS)
-        # ============================================
-        with tab3:
-            st.subheader("⚠️ Errores Encontrados")
-
-            # Errores léxicos
-            if errores_lexicos:
-                st.markdown("**Errores Léxicos:**")
-                import pandas as pd
-                df_errores = pd.DataFrame(errores_lexicos)
-                st.dataframe(df_errores, use_container_width=True)
-            else:
-                st.success("✅ No hay errores léxicos")
-
-            # Errores sintácticos (NUEVO)
-            if errores_sintacticos > 0:
-                st.markdown("**Errores Sintácticos:**")
-                st.warning(f"Se encontraron {errores_sintacticos} errores de sintaxis")
-                st.caption("Revisa el árbol sintáctico en la pestaña anterior para más detalles")
-            else:
-                st.success("✅ No hay errores sintácticos")
-
-        # ============================================
-        # TAB 4: REPORTE (IGUAL PERO CON SINTÁCTICO)
-        # ============================================
-        with tab4:
-            st.subheader("📋 Reporte Completo del Análisis")
-
-            st.markdown("### 📊 Resumen Ejecutivo")
-
-            col_r1, col_r2, col_r3 = st.columns(3)
-            with col_r1:
-                st.metric("Tokens", len(tokens))
-            with col_r2:
-                tipos_unicos = len(set(t['token'] for t in tokens))
-                st.metric("Tipos de Tokens", tipos_unicos)
-            with col_r3:
-                st.metric("Errores Totales", len(errores_lexicos) + errores_sintacticos)
-
-            st.markdown("### 📝 Detalles Completos")
-            reporte = {
-                "archivo": info,
-                "analisis": {
-                    "total_tokens": len(tokens),
-                    "tipos_unicos": tipos_unicos,
-                    "errores_lexicos": len(errores_lexicos),
-                    "errores_sintacticos": errores_sintacticos,
-                    "sintaxis_correcta": sintaxis_correcta
-                },
-                "primeros_tokens": tokens[:10] if len(tokens) > 10 else tokens
-            }
-            st.json(reporte)
-
-            import json
-            reporte_json = json.dumps(reporte, indent=2, ensure_ascii=False)
-            st.download_button(
-                label="📥 Descargar Reporte (JSON)",
-                data=reporte_json,
-                file_name=f"reporte_{info['nombre_base']}.json",
-                mime="application/json",
-                use_container_width=True
-            )
-
-        # ============================================
-        # BOTÓN RESET (IGUAL)
-        # ============================================
-        st.markdown("---")
-        if st.button("🔄 Nuevo Análisis", use_container_width=True):
-            st.session_state.analizar = False
-            if 'archivo_ejemplo' in st.session_state:
-                del st.session_state['archivo_ejemplo']
-            st.rerun()
-
+        st.markdown("""
+            <div class="footer">
+                <p>Analizador Lexico y Sintactico · Desarrollado con Streamlit</p>
+                <p style="font-size: 0.75rem; color: #444444 !important; margin-top: 0.25rem;">
+                    Soporte para archivos: .txt, .java, .jav, .class, .jsp, .jspx, .properties, .xml, .html, .css, .js, .py
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     app = App()
